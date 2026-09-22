@@ -10,9 +10,67 @@ import (
 // ModelConfig is the agent's model setting. The API accepts a bare string on
 // create but always returns an object on read.
 type ModelConfig struct {
-	ID    string `json:"id"`
-	Speed string `json:"speed,omitempty"`
-	Type  string `json:"type,omitempty"`
+	ID     string       `json:"id"`
+	Effort *ModelEffort `json:"effort,omitempty"`
+	Speed  string       `json:"speed,omitempty"`
+	Type   string       `json:"type,omitempty"`
+}
+
+// ModelEffort is the reasoning-effort setting nested under model.effort.
+// The API represents it as an object with a single `type` discriminator
+// (for example {"type": "medium"}).
+type ModelEffort struct {
+	Type string `json:"type"`
+}
+
+// ModelSpec is the model setting as written in a create or update request.
+// It marshals to the bare string form when only ID is set, which is what the
+// API documents and what earlier provider versions sent, and to the object
+// form {"id", "effort": {"type"}, "speed"} when Effort or Speed is set.
+type ModelSpec struct {
+	ID     string
+	Effort string
+	Speed  string
+}
+
+// UnmarshalJSON implements json.Unmarshaler, accepting both the bare-string
+// and object forms so a request body round-trips (test doubles decode the
+// same struct the client encodes).
+func (m *ModelSpec) UnmarshalJSON(b []byte) error {
+	var id string
+	if err := json.Unmarshal(b, &id); err == nil {
+		*m = ModelSpec{ID: id}
+		return nil
+	}
+	var obj struct {
+		ID     string       `json:"id"`
+		Effort *ModelEffort `json:"effort"`
+		Speed  string       `json:"speed"`
+	}
+	if err := json.Unmarshal(b, &obj); err != nil {
+		return fmt.Errorf("client.ModelSpec: model must be a string or {id, effort, speed} object: %w", err)
+	}
+	*m = ModelSpec{ID: obj.ID, Speed: obj.Speed}
+	if obj.Effort != nil {
+		m.Effort = obj.Effort.Type
+	}
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler.
+func (m ModelSpec) MarshalJSON() ([]byte, error) {
+	if m.Effort == "" && m.Speed == "" {
+		return json.Marshal(m.ID)
+	}
+	obj := struct {
+		ID     string       `json:"id"`
+		Effort *ModelEffort `json:"effort,omitempty"`
+		Speed  string       `json:"speed,omitempty"`
+	}{ID: m.ID, Speed: m.Speed}
+	if m.Effort != "" {
+		obj.Effort = &ModelEffort{Type: m.Effort}
+	}
+	return json.Marshal(obj)
 }
 
 // Agent is the read shape returned by GET /v1/agents/{id}.
@@ -187,11 +245,11 @@ type MultiagentMember struct {
 
 // AgentCreateRequest is the body for POST /v1/agents.
 //
-// The fields Model is sent as a bare string because that is what the upstream
-// API accepts and what most users will write in HCL.
+// Model marshals to a bare string unless an effort or speed is set; see
+// ModelSpec.
 type AgentCreateRequest struct {
 	Name        string            `json:"name"`
-	Model       string            `json:"model"`
+	Model       ModelSpec         `json:"model"`
 	System      *string           `json:"system,omitempty"`
 	Description *string           `json:"description,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
@@ -211,7 +269,7 @@ type AgentCreateRequest struct {
 type AgentUpdateRequest struct {
 	Version     int             `json:"version"`
 	Name        *string         `json:"name,omitempty"`
-	Model       *string         `json:"model,omitempty"`
+	Model       *ModelSpec      `json:"model,omitempty"`
 	System      json.RawMessage `json:"system,omitempty"`
 	Description json.RawMessage `json:"description,omitempty"`
 	// Metadata uses map[string]any so the provider can send JSON null

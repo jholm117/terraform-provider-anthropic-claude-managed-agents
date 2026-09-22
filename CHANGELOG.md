@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `claude-managed-agents_agent`: new optional `model_effort` and `model_speed`
+  attributes. When either is set the provider sends the API's object form
+  `{"id", "effort": {"type"}, "speed"}` instead of the bare model string;
+  both are Computed so the server-reported values land in state when unset.
+  The `client.AgentCreateRequest.Model` / `AgentUpdateRequest.Model` fields
+  are now `client.ModelSpec` rather than `string`.
+
 ## [1.2.0] - 2026-07-10
 
 No provider behavior changes since v1.1.0. The resource and data-source

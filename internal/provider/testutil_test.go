@@ -109,7 +109,7 @@ type fakeAgent struct {
 	ID          string            `json:"id"`
 	Type        string            `json:"type"`
 	Name        string            `json:"name"`
-	Model       map[string]string `json:"model"`
+	Model       map[string]any    `json:"model"`
 	System      *string           `json:"system"`
 	Description *string           `json:"description"`
 	Metadata    map[string]string `json:"metadata"`
@@ -1115,6 +1115,8 @@ func (f *fakeAPI) create(w http.ResponseWriter, r *http.Request) {
 		writeAPIErr(w, http.StatusBadRequest, "invalid_request_error", "model must be a string or {id} object")
 		return
 	}
+	model := map[string]any{"id": modelID, "speed": "standard"}
+	applyModelObject(model, body.Model)
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -1125,7 +1127,7 @@ func (f *fakeAPI) create(w http.ResponseWriter, r *http.Request) {
 		ID:          id,
 		Type:        "agent",
 		Name:        body.Name,
-		Model:       map[string]string{"id": modelID, "speed": "standard"},
+		Model:       model,
 		System:      body.System,
 		Description: body.Description,
 		Metadata:    body.Metadata,
@@ -1200,6 +1202,7 @@ func (f *fakeAPI) update(w http.ResponseWriter, r *http.Request, id string) {
 	if body.Model != nil {
 		if id, ok := modelStringOf(body.Model); ok {
 			a.Model["id"] = id
+			applyModelObject(a.Model, body.Model)
 		}
 	}
 	if body.System != nil {
@@ -2089,4 +2092,23 @@ provider "claude-managed-agents" {
   base_url = %q
 }
 `, base)
+}
+
+// applyModelObject copies the optional effort and speed fields of a model
+// request written in object form onto the stored model, mirroring how the
+// live API echoes {"id","effort":{"type"},"speed"} on read. A bare-string
+// model leaves both untouched.
+func applyModelObject(dst map[string]any, v any) {
+	obj, ok := v.(map[string]any)
+	if !ok {
+		return
+	}
+	if effort, ok := obj["effort"].(map[string]any); ok {
+		if t, ok := effort["type"].(string); ok && t != "" {
+			dst["effort"] = map[string]any{"type": t}
+		}
+	}
+	if speed, ok := obj["speed"].(string); ok && speed != "" {
+		dst["speed"] = speed
+	}
 }
