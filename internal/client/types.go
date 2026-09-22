@@ -296,7 +296,8 @@ type ListResponse[T any] struct {
 
 // Environment is the read shape returned by GET /v1/environments/{id}.
 //
-// Environments are immutable post-creation upstream — there is no update
+// Environments are updatable in place via POST /v1/environments/{id}
+// (name and config); they are not versioned. Earlier comment: no update
 // endpoint. Treat every field as ForceNew in the Terraform resource.
 type Environment struct {
 	ID         string      `json:"id"`
@@ -344,6 +345,16 @@ type Networking struct {
 type EnvironmentCreateRequest struct {
 	Name   string      `json:"name"`
 	Config CloudConfig `json:"config"`
+}
+
+// EnvironmentUpdateRequest is the body for POST /v1/environments/{id}.
+// Omitted fields preserve their server-side value; the provider sends the
+// full config whenever any part of it changed, so the result is exactly the
+// planned config rather than a merge.
+// https://platform.claude.com/docs/en/api/beta/environments/update
+type EnvironmentUpdateRequest struct {
+	Name   *string      `json:"name,omitempty"`
+	Config *CloudConfig `json:"config,omitempty"`
 }
 
 // MemoryStore is the read shape returned by GET /v1/memory_stores/{id}.

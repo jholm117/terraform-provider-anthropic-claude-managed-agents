@@ -580,6 +580,8 @@ func (f *fakeAPI) handler() http.Handler {
 			switch r.Method {
 			case http.MethodGet:
 				f.envGet(w, m[1])
+			case http.MethodPost:
+				f.envUpdate(w, r, m[1])
 			case http.MethodDelete:
 				f.envDelete(w, m[1])
 			default:
@@ -897,6 +899,49 @@ func (f *fakeAPI) envCreate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("request-id", "req_"+id)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(env)
+}
+
+// envUpdate mirrors POST /v1/environments/{id}: name and config are optional
+// and an omitted field keeps its stored value.
+func (f *fakeAPI) envUpdate(w http.ResponseWriter, r *http.Request, id string) {
+	var body struct {
+		Name   *string        `json:"name"`
+		Config map[string]any `json:"config"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeAPIErr(w, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e, ok := f.envs[id]
+	if !ok {
+		writeAPIErr(w, http.StatusNotFound, "not_found_error", "no such environment")
+		return
+	}
+	if e.ArchivedAt != nil {
+		writeAPIErr(w, http.StatusConflict, "invalid_request_error", "environment is archived")
+		return
+	}
+	if body.Name != nil {
+		if *body.Name == "" {
+			writeAPIErr(w, http.StatusBadRequest, "invalid_request_error", "name must not be empty")
+			return
+		}
+		e.Name = *body.Name
+	}
+	if body.Config != nil {
+		net, _ := body.Config["networking"].(map[string]any)
+		if net == nil || net["type"] == nil {
+			writeAPIErr(w, http.StatusBadRequest, "invalid_request_error", "config.networking.type is required")
+			return
+		}
+		e.Config = body.Config
+	}
+	e.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	w.Header().Set("request-id", "req_"+id)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(e)
 }
 
 func (f *fakeAPI) envGet(w http.ResponseWriter, id string) {

@@ -15,6 +15,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The `client.AgentCreateRequest.Model` / `AgentUpdateRequest.Model` fields
   are now `client.ModelSpec` rather than `string`.
 
+### Changed
+
+- `claude-managed-agents_environment`: `name` and `config` are now updated
+  in place via `POST /v1/environments/{id}` instead of forcing replacement.
+  The upstream API gained an update endpoint; the resource previously
+  documented that none existed. Environments are not versioned upstream, so
+  a config change applies to every new session. New `client.UpdateEnvironment`.
+
 ## [1.2.0] - 2026-07-10
 
 No provider behavior changes since v1.1.0. The resource and data-source
