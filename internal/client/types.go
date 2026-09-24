@@ -429,11 +429,31 @@ type VaultCredential struct {
 //
 // For `mcp_oauth`, the `expires_at` and the `refresh` block (sans secrets)
 // are returned. For `static_bearer`, only `mcp_server_url` is meaningful.
+// For `environment_variable`, `secret_name`, `networking`, and
+// `injection_location` are returned; `mcp_server_url` is absent.
 type VaultCredentialAuth struct {
-	Type         string                      `json:"type"`
-	McpServerURL string                      `json:"mcp_server_url"`
-	ExpiresAt    *time.Time                  `json:"expires_at,omitempty"`
-	Refresh      *VaultCredentialAuthRefresh `json:"refresh,omitempty"`
+	Type              string                                `json:"type"`
+	McpServerURL      string                                `json:"mcp_server_url,omitempty"`
+	ExpiresAt         *time.Time                            `json:"expires_at,omitempty"`
+	Refresh           *VaultCredentialAuthRefresh           `json:"refresh,omitempty"`
+	SecretName        string                                `json:"secret_name,omitempty"`
+	Networking        *VaultCredentialAuthNetworking        `json:"networking,omitempty"`
+	InjectionLocation *VaultCredentialAuthInjectionLocation `json:"injection_location,omitempty"`
+}
+
+// VaultCredentialAuthNetworking is the `networking` object of an
+// `environment_variable` credential: `unrestricted`, or `limited` with the
+// hosts the secret is substituted on.
+type VaultCredentialAuthNetworking struct {
+	Type         string   `json:"type"`
+	AllowedHosts []string `json:"allowed_hosts,omitempty"`
+}
+
+// VaultCredentialAuthInjectionLocation is where in an outbound request an
+// `environment_variable` credential's placeholder is substituted.
+type VaultCredentialAuthInjectionLocation struct {
+	Header bool `json:"header"`
+	Body   bool `json:"body"`
 }
 
 // VaultCredentialAuthRefresh mirrors the read shape of the OAuth refresh
