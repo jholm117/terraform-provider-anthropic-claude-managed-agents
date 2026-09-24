@@ -14,9 +14,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   both are Computed so the server-reported values land in state when unset.
   The `client.AgentCreateRequest.Model` / `AgentUpdateRequest.Model` fields
   are now `client.ModelSpec` rather than `string`.
+- `claude-managed-agents_vault_credential`: support `auth.type =
+  "environment_variable"` with `secret_name` (immutable), write-only
+  `secret_value` + `secret_value_wo_version` rotation counter, `networking`
+  (`limited` + `allowed_hosts`, or `unrestricted`), and `injection_location`
+  (`header`, `body`; Computed, API default recorded when unset). `networking`
+  and `injection_location` update in place. The data source exposes the
+  non-secret fields. Per-type required/forbidden `auth` attributes are now
+  checked at validate time.
 
 ### Changed
 
+- `claude-managed-agents_vault_credential`: `auth.mcp_server_url` is now
+  Optional at the schema level; it is still required (by config validation)
+  for `static_bearer` and `mcp_oauth`, and must be unset for
+  `environment_variable`. `auth.type` values outside the three supported
+  types are rejected at plan time.
 - `claude-managed-agents_environment`: `name` and `config` are now updated
   in place via `POST /v1/environments/{id}` instead of forcing replacement.
   The upstream API gained an update endpoint; the resource previously
