@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Provider: bearer-token authentication. A new sensitive `auth_token`
+  attribute, defaulting to the `ANTHROPIC_AUTH_TOKEN` environment variable,
+  sends `Authorization: Bearer <token>` instead of `x-api-key`, so an OAuth
+  login or a workload-identity-federation token can apply without a stored
+  API key. Setting both `auth_token` and `api_key` is an error.
+
 - `claude-managed-agents_agent`: new optional `model_effort` and `model_speed`
   attributes. When either is set the provider sends the API's object form
   `{"id", "effort": {"type"}, "speed"}` instead of the bare model string;
